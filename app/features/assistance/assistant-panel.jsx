@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useChat } from "@ai-sdk/react";
 import {
   ArrowLeft,
   GitBranch,
-  Send,
   ShieldCheck,
   Terminal,
   UploadCloud,
@@ -12,8 +11,24 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/app/components/ai-elements/conversation";
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+} from "@/app/components/ai-elements/message";
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+} from "@/app/components/ai-elements/prompt-input";
 
 const scenarios = {
   overview: {
@@ -47,16 +62,13 @@ const methods = [
 ];
 
 export function AssistantPanel({ open, onClose, onSelect = () => {}, scenario = "overview", standalone = false }) {
-  const [draft, setDraft] = useState("");
-  const [lastMessage, setLastMessage] = useState("");
+  const { messages, sendMessage, status, error, stop } = useChat();
   const content = scenarios[scenario] || scenarios.overview;
 
-  function sendMessage(event) {
-    event.preventDefault();
-    const value = draft.trim();
-    if (!value) return;
-    setLastMessage(value);
-    setDraft("");
+  function handleSubmit({ text }) {
+    const value = text.trim();
+    if (!value || status === "submitted" || status === "streaming") return;
+    sendMessage({ text: value });
   }
 
   return (
@@ -110,40 +122,34 @@ export function AssistantPanel({ open, onClose, onSelect = () => {}, scenario = 
             )}
           </div>
 
-          {lastMessage && (
-            <div
-              aria-live="polite"
-              className="mt-5 rounded-2xl border border-[#78f3c5]/20 bg-[#78f3c5]/5 p-4 text-sm"
-            >
-              <p className="text-xs text-slate-500">پیام شما</p>
-              <p className="mt-2 text-slate-200">{lastMessage}</p>
-              <p className="mt-3 text-xs text-[#78f3c5]">
-                گرفتم! بررسی می‌کنم و همین‌جا همراهت هستم.
-              </p>
-            </div>
-          )}
+          <Conversation className="mt-5 min-h-48 rounded-2xl border border-white/10 bg-black/20">
+            <ConversationContent className="gap-4 p-4">
+              {messages.length === 0 && <p className="m-auto text-center text-xs leading-6 text-slate-500">سؤالت درباره‌ی ساخت سرویس، دپلوی یا خطاهای استقرار را از رهیار بپرس.</p>}
+              {messages.map((chatMessage, messageIndex) => (
+                <Message from={chatMessage.role} key={chatMessage.id}>
+                  <MessageContent>
+                    {chatMessage.parts.filter((part) => part.type === "text").map((part, partIndex) => (
+                      chatMessage.role === "assistant"
+                        ? <MessageResponse isAnimating={status === "streaming" && messageIndex === messages.length - 1} key={`${chatMessage.id}-${partIndex}`}>{part.text}</MessageResponse>
+                        : <span key={`${chatMessage.id}-${partIndex}`}>{part.text}</span>
+                    ))}
+                  </MessageContent>
+                </Message>
+              ))}
+              {status === "submitted" && <Message from="assistant"><MessageContent><span className="shimmer">رهیار در حال فکر کردن است...</span></MessageContent></Message>}
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
 
-          <form onSubmit={sendMessage} className="mt-auto flex gap-2 pt-6">
-            <label htmlFor="assistant-message" className="sr-only">
-              پیام به دستیار رهیار
-            </label>
-            <Input
-              id="assistant-message"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="از رهیار بپرس..."
-              autoComplete="off"
-              className="flex-1"
-            />
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!draft.trim()}
-              aria-label="ارسال پیام"
-            >
-              <Send data-icon="inline-start" />
-            </Button>
-          </form>
+          {error && <p role="alert" className="mt-2 text-xs text-red-400">{error.message || "ارتباط با رهیار برقرار نشد."}</p>}
+
+          <PromptInput onSubmit={handleSubmit} className="mt-3">
+            <PromptInputBody><PromptInputTextarea aria-label="پیام به دستیار رهیار" placeholder="از رهیار بپرس..." /></PromptInputBody>
+            <PromptInputFooter>
+              <span className="text-[11px] text-slate-500">Enter برای ارسال · Shift+Enter خط جدید</span>
+              <PromptInputSubmit status={status} onStop={stop} />
+            </PromptInputFooter>
+          </PromptInput>
         </div>
 
         <div
