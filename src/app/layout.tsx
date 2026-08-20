@@ -15,7 +15,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: `${siteConfig.name} — قطعات یدکی خودرو`,
+    default: `${siteConfig.name} — لیارا`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
