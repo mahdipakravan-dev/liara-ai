@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { AssistantPanel } from "@/app/features/assistance/assistant-panel";
 
 const zones = [
   { id: "iran", title: "ایران", description: "کمترین تأخیر برای کاربران داخل ایران", ping: "۱۲ ms" },
@@ -19,6 +20,7 @@ export function DeploymentFlow({ method, onCancel, onComplete }) {
   const [zone, setZone] = useState("iran");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [assistantOpen, setAssistantOpen] = useState(true);
 
   async function deploy() {
     setIsSubmitting(true);
@@ -38,7 +40,8 @@ export function DeploymentFlow({ method, onCancel, onComplete }) {
   }
 
   return (
-    <main className="soft-grid min-h-screen bg-[#18191f] px-5 py-12 text-slate-100">
+    <>
+    <main className={cn("soft-grid min-h-screen bg-[#18191f] px-5 py-12 text-slate-100 transition-[margin] duration-500 ease-out", assistantOpen && "md:ml-[50vw]")}>
       <div className="mx-auto w-full max-w-2xl">
         <Button variant="ghost" onClick={onCancel}><ArrowLeft data-icon="inline-start" /> بازگشت به پنل</Button>
         <section className="mt-16 border-r border-dashed border-white/15 pr-6 sm:pr-10">
@@ -83,5 +86,8 @@ export function DeploymentFlow({ method, onCancel, onComplete }) {
         </section>
       </div>
     </main>
+    {!assistantOpen && <Button onClick={() => setAssistantOpen(true)} className="fixed bottom-5 left-5">بازکردن رهیار</Button>}
+    <AssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} scenario="deploy" standalone />
+    </>
   );
 }

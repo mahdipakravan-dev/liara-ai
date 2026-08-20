@@ -393,8 +393,9 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
       />
       <main
         className={cn(
-          "min-h-[calc(100vh-134px)] transition-[margin] duration-300",
+          "min-h-[calc(100vh-134px)] transition-[margin] duration-500 ease-out",
           contentMargin,
+          assistant && "md:ml-[50vw]",
         )}
       >
         {active === "تاریخچه" ? <HistoryView deployment={deployment} /> : <div className="mx-auto max-w-[980px] px-5 py-10 lg:px-8 lg:py-16">
@@ -466,7 +467,7 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
       </button>
       <AssistantPanel
         open={assistant}
-        message={deployment ? "در حال دپلوی، حواسم هست اگر به مشکل بخوره بررسی می‌کنم و باهم حلش می‌کنیم :)" : undefined}
+        scenario={active === "تاریخچه" ? (deployment?.status === "error" ? "error" : "history") : "overview"}
         onClose={() => setAssistant(false)}
         onSelect={(m) => {
           setMethod(m);
