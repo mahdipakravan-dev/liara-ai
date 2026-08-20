@@ -1,24 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { createRoot } from "react-dom/client";
+"use client";
+
 import {
   Activity,
   ArrowLeft,
   Bell,
   Blocks,
-  Bot,
   Box,
   Check,
   ChevronDown,
-  CircleHelp,
   Cloud,
-  Code2,
   Command,
   Database,
   Download,
-  ExternalLink,
   FileText,
-  FolderClock,
-  Gauge,
   GitBranch,
   Globe2,
   HardDrive,
@@ -40,9 +34,9 @@ import {
   Terminal,
   UploadCloud,
   X,
-  Zap,
 } from "lucide-react";
-import "./index.css";
+import { useEffect, useState } from "react";
+import "./globals.css";
 
 const cx = (...items) => items.filter(Boolean).join(" ");
 
@@ -866,7 +860,7 @@ function CreateFlow({ onCancel, onComplete }) {
   );
 }
 
-function App() {
+export default function App() {
   const [view, setView] = useState("dashboard");
   return view === "dashboard" ? (
     <DeployDashboard onCreate={() => setView("create")} />
@@ -877,9 +871,3 @@ function App() {
     />
   );
 }
-
-createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
