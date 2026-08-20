@@ -354,6 +354,7 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
   const [active, setActive] = useState(initialActive);
   const [method, setMethod] = useState("GitHub");
   const [assistant, setAssistant] = useState(true);
+  const [assistantMode, setAssistantMode] = useState("docked");
   const contentMargin = collapsed ? "md:mr-[76px]" : "md:mr-[236px]";
 
   useEffect(() => {
@@ -395,7 +396,7 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
         className={cn(
           "min-h-[calc(100vh-134px)] transition-[margin] duration-500 ease-out",
           contentMargin,
-          assistant && "md:ml-[50vw]",
+          assistant && assistantMode === "docked" && "md:ml-[50vw]",
         )}
       >
         {active === "تاریخچه" ? <HistoryView deployment={deployment} /> : <div className="mx-auto max-w-[980px] px-5 py-10 lg:px-8 lg:py-16">
@@ -447,26 +448,11 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
         </div>
         }
       </main>
-      <button
-        onClick={() => setAssistant(true)}
-        aria-label="بازکردن دستیار"
-        className={cn(
-          "orb fixed bottom-7 left-7 z-40 grid size-14 place-items-center rounded-full transition hover:scale-105",
-          assistant ? "scale-0 opacity-0" : "scale-100 opacity-100",
-        )}
-      >
-        <div className="flex h-5 items-center gap-1">
-          {[14, 22, 17].map((h, i) => (
-            <i
-              key={i}
-              className="voice-bar w-1 rounded-full bg-white"
-              style={{ height: h }}
-            />
-          ))}
-        </div>
-      </button>
       <AssistantPanel
         open={assistant}
+        onOpen={() => setAssistant(true)}
+        mode={assistantMode}
+        onModeChange={setAssistantMode}
         scenario={active === "تاریخچه" ? (deployment?.status === "error" ? "error" : "history") : "overview"}
         onClose={() => setAssistant(false)}
         onSelect={(m) => {
