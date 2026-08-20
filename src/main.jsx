@@ -1,25 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Activity,
-  ArrowLeft,
   Bell,
   Blocks,
-  Bot,
   Box,
   Check,
   ChevronDown,
-  CircleHelp,
   Cloud,
-  Code2,
   Command,
   Database,
   Download,
-  ExternalLink,
   FileText,
-  FolderClock,
-  Gauge,
   GitBranch,
   Globe2,
   HardDrive,
@@ -31,7 +24,6 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Play,
-  Plus,
   Rocket,
   Search,
   Server,
@@ -41,100 +33,17 @@ import {
   Terminal,
   UploadCloud,
   X,
-  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const cx = (...items) => items.filter(Boolean).join(" ");
-
-const runtimes = [
-  ["Node.js", "JS", "#57e0a1"],
-  ["Next.js", "NEXT", "#d7fffa"],
-  ["Laravel", "L", "#ff5f63"],
-  ["PHP", "php", "#67d6e8"],
-  ["Python", "Py", "#ffd36a"],
-  ["Django", "dj", "#69dee0"],
-  ["Flask", "Fl", "#76eddf"],
-  [".NET", ".NET", "#d18afe"],
-  ["React", "⚛", "#49b7ff"],
-  ["Angular", "A", "#ff6b68"],
-  ["Vue", "V", "#56dfa0"],
-  ["Static", "5", "#ff795c"],
-  ["Go", "GO", "#63d8e6"],
-  ["Docker", "◆", "#3bb0ff"],
-];
-const plans = [
-  {
-    name: "زمین",
-    monthly: "۷۰۰,۰۰۰",
-    hourly: "۹۷۲",
-    ram: "512 MB",
-    cpu: "0.5 Core",
-    disk: "5 GB",
-    tone: "#315e8d",
-  },
-  {
-    name: "مریخ",
-    monthly: "۱,۲۰۰,۰۰۰",
-    hourly: "۱,۶۶۶",
-    ram: "1 GB",
-    cpu: "1 Core",
-    disk: "10 GB",
-    tone: "#a9563d",
-  },
-  {
-    name: "مشتری",
-    monthly: "۲,۱۰۰,۰۰۰",
-    hourly: "۲,۹۱۶",
-    ram: "2 GB",
-    cpu: "1 Core",
-    disk: "20 GB",
-    tone: "#b7965a",
-  },
-  {
-    name: "زحل",
-    monthly: "۳,۸۰۰,۰۰۰",
-    hourly: "۵,۲۷۶",
-    ram: "4 GB",
-    cpu: "2 Core",
-    disk: "40 GB",
-    tone: "#c7a76a",
-  },
-  {
-    name: "اورانوس",
-    monthly: "۶,۶۰۰,۰۰۰",
-    hourly: "۹,۱۶۶",
-    ram: "8 GB",
-    cpu: "4 Core",
-    disk: "80 GB",
-    tone: "#75a5c3",
-  },
-  {
-    name: "نپتون",
-    monthly: "۱۱,۵۰۰,۰۰۰",
-    hourly: "۱۵,۹۷۲",
-    ram: "16 GB",
-    cpu: "8 Core",
-    disk: "160 GB",
-    tone: "#29778a",
-  },
-  {
-    name: "پلوتون",
-    monthly: "۲۰,۱۰۰,۰۰۰",
-    hourly: "۲۷,۹۱۶",
-    ram: "32 GB",
-    cpu: "16 Core",
-    disk: "320 GB",
-    tone: "#8a674f",
-  },
-];
+import { cn } from "@/lib/utils";
+import { CreateFlow } from "@/src/features/create-application/create-flow";
 
 function IconButton({ label, children, className = "", ...props }) {
   return (
     <button
       aria-label={label}
       title={label}
-      className={cx(
+      className={cn(
         "grid size-10 place-items-center rounded-xl text-slate-300 transition hover:bg-white/7 hover:text-white",
         className,
       )}
@@ -237,7 +146,7 @@ function TopHeader({ onCreate }) {
         {services.map(([label, I], i) => (
           <button
             key={label}
-            className={cx(
+            className={cn(
               "flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm transition",
               i === 0
                 ? "bg-[#78f3c5]/8 text-[#78f3c5]"
@@ -269,7 +178,7 @@ function Sidebar({ collapsed, setCollapsed, active, setActive }) {
   ];
   return (
     <aside
-      className={cx(
+      className={cn(
         "fixed bottom-0 right-0 z-30 hidden border-l border-white/6 bg-[#202129] transition-[width] duration-300 md:block",
         collapsed ? "w-[76px]" : "w-[236px]",
       )}
@@ -277,7 +186,7 @@ function Sidebar({ collapsed, setCollapsed, active, setActive }) {
     >
       <div className="flex h-full flex-col py-4">
         <div
-          className={cx(
+            className={cn(
             "mb-3 flex items-center text-[11px] text-slate-500",
             collapsed ? "justify-center" : "justify-between px-5",
           )}
@@ -300,7 +209,7 @@ function Sidebar({ collapsed, setCollapsed, active, setActive }) {
               key={label}
               onClick={() => setActive(label)}
               title={collapsed ? label : undefined}
-              className={cx(
+              className={cn(
                 "flex h-12 w-full items-center gap-3 border-r-2 px-5 text-sm transition",
                 active === label
                   ? "border-[#78f3c5] bg-gradient-to-l from-[#78f3c5]/18 to-transparent text-white"
@@ -339,7 +248,7 @@ function AssistantPanel({ open, onClose, onSelect }) {
   return (
     <section
       aria-label="دستیار استقرار"
-      className={cx(
+      className={cn(
         "fixed bottom-5 left-5 z-50 w-[calc(100%-40px)] max-w-[370px] origin-bottom-left rounded-[26px] border border-[#78f3c5]/20 bg-[#22242d]/96 p-5 shadow-[0_24px_80px_rgba(0,0,0,.55)] backdrop-blur-2xl transition duration-300",
         open
           ? "scale-100 opacity-100"
@@ -505,7 +414,7 @@ function DeployDashboard({ onCreate }) {
         setActive={setActive}
       />
       <main
-        className={cx(
+        className={cn(
           "min-h-[calc(100vh-134px)] transition-[margin] duration-300",
           contentMargin,
         )}
@@ -528,7 +437,7 @@ function DeployDashboard({ onCreate }) {
                 aria-selected={method === x}
                 onClick={() => setMethod(x)}
                 key={x}
-                className={cx(
+                className={cn(
                   "relative px-6 py-4 text-sm transition after:absolute after:inset-x-0 after:-bottom-px after:h-0.5",
                   method === x
                     ? "text-[#78f3c5] after:bg-[#78f3c5]"
@@ -561,7 +470,7 @@ function DeployDashboard({ onCreate }) {
       <button
         onClick={() => setAssistant(true)}
         aria-label="بازکردن دستیار"
-        className={cx(
+        className={cn(
           "orb fixed bottom-7 left-7 z-40 grid size-14 place-items-center rounded-full transition hover:scale-105",
           assistant ? "scale-0 opacity-0" : "scale-100 opacity-100",
         )}
@@ -585,278 +494,6 @@ function DeployDashboard({ onCreate }) {
         }}
       />
     </div>
-  );
-}
-
-function RuntimeStep({
-  selected,
-  setSelected,
-  name,
-  setName,
-  onNext,
-  onCancel,
-}) {
-  return (
-    <div className="mx-auto max-w-[1070px] px-5 py-10 lg:py-16">
-      <button
-        onClick={onCancel}
-        className="mb-10 flex items-center gap-2 text-sm text-slate-400 hover:text-white"
-      >
-        <ArrowLeft size={17} /> بازگشت <span className="text-xs">(ESC)</span>
-      </button>
-      <div className="text-right">
-        <p className="text-xs text-[#78f3c5]">مرحله ۱ از ۲</p>
-        <h1 className="mt-3 text-2xl font-bold">ساخت برنامه‌ی جدید</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          لطفاً نوع برنامه‌ی خود را انتخاب کنید.
-        </p>
-      </div>
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7">
-        {runtimes.map(([label, mark, color]) => (
-          <button
-            aria-pressed={selected === label}
-            onClick={() => setSelected(label)}
-            key={label}
-            className={cx(
-              "flex min-h-36 flex-col items-center justify-center gap-5 rounded-xl border bg-[#292b35] p-4 transition hover:-translate-y-1 hover:border-white/20",
-              selected === label
-                ? "border-[#78f3c5] bg-[#173633]/70 shadow-[0_0_24px_rgba(120,243,197,.08)]"
-                : "border-transparent",
-            )}
-          >
-            <span
-              style={{ color }}
-              className="text-3xl font-black drop-shadow-lg"
-            >
-              {mark}
-            </span>
-            <span
-              className={cx(
-                "text-xs font-medium uppercase",
-                selected === label ? "text-[#78f3c5]" : "text-slate-100",
-              )}
-            >
-              {label}
-            </span>
-          </button>
-        ))}
-      </div>
-      <p className="mt-3 text-left text-xs leading-6 text-cyan-300">
-        <span className="rounded border border-cyan-400 px-1.5 py-1">نکته</span>{" "}
-        پلتفرم {selected} لیارا از فریم‌ورک‌های محبوب و استاندارد پشتیبانی
-        می‌کند.
-      </p>
-      <section className="mt-9">
-        <h2 className="text-lg font-semibold">شناسه‌ی برنامه</h2>
-        <p className="mt-2 text-sm leading-7 text-slate-400">
-          شناسه، همان Subdomain برنامه‌ی شماست. از حروف انگلیسی کوچک، اعداد و خط
-          تیره استفاده کنید.
-        </p>
-        <div
-          dir="ltr"
-          className="mt-5 flex h-12 overflow-hidden rounded-xl border border-white/10 bg-[#292b35] focus-within:border-[#78f3c5]"
-        >
-          <span className="grid place-items-center border-r border-white/7 px-4 font-mono text-sm">
-            https://
-          </span>
-          <input
-            aria-label="شناسه برنامه"
-            value={name}
-            onChange={(e) => setName(e.target.value.replace(/[^a-z0-9-]/g, ""))}
-            placeholder="my-website"
-            className="min-w-0 flex-1 bg-transparent px-4 text-left outline-none"
-          />
-          <span className="grid place-items-center border-l border-white/7 px-4 font-mono text-sm">
-            .liara.run
-          </span>
-        </div>
-      </section>
-      <section className="mt-10 border-t border-white/7 pt-8">
-        <h2 className="text-lg font-semibold">شبکه خصوصی</h2>
-        <p className="mt-2 text-sm text-slate-400">
-          برنامه‌ها و دیتابیس‌هایی که نیاز به ارتباط داخلی دارند را در یک شبکه
-          خصوصی قرار دهید.
-        </p>
-        <button className="mt-5 flex items-center gap-2 rounded-xl border border-[#78f3c5]/60 px-4 py-2.5 text-sm text-[#78f3c5] hover:bg-[#78f3c5]/8">
-          <Plus size={16} /> ساخت شبکه خصوصی جدید
-        </button>
-      </section>
-      <div className="sticky bottom-4 mt-12 flex justify-end">
-        <Button disabled={!name} onClick={onNext} size="lg">
-          انتخاب پلن
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function PlanStep({ selected, setSelected, onBack, onCreate }) {
-  return (
-    <div className="mx-auto max-w-[1070px] px-5 py-10 lg:py-16">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-sm text-slate-400 hover:text-white"
-      >
-        <ArrowLeft size={17} /> مرحله قبل
-      </button>
-      <div className="mt-9 text-right">
-        <p className="text-xs text-[#78f3c5]">مرحله ۲ از ۲</p>
-        <h1 className="mt-3 text-2xl font-bold">انتخاب منابع برنامه</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          یکی از پلن‌های زیر را متناسب با نیاز برنامه انتخاب کنید.
-        </p>
-      </div>
-      <div className="mt-7 flex flex-col justify-between gap-3 text-xs text-cyan-300 sm:flex-row">
-        <span>
-          <Info size={15} className="ml-1 inline" /> موقعیت تمامی پلن‌ها ایران
-          است.
-        </span>
-        <span>
-          <Info size={15} className="ml-1 inline" /> ترافیک تمامی پلن‌ها نامحدود
-          است.
-        </span>
-      </div>
-      <div className="mx-auto mt-8 grid max-w-sm grid-cols-3 rounded-2xl border border-white/10 bg-[#24252d] p-1">
-        <button className="rounded-xl px-4 py-3 text-slate-400">پایه</button>
-        <button className="rounded-xl border border-[#78f3c5] bg-[#78f3c5]/10 px-4 py-3 text-white">
-          نقره‌ای
-        </button>
-        <button className="rounded-xl px-4 py-3 text-slate-400">طلایی</button>
-      </div>
-      <div className="mt-8 overflow-x-auto rounded-xl border border-white/10">
-        <table className="w-full min-w-[900px] border-collapse text-center text-sm">
-          <thead>
-            <tr>
-              {plans.map((p, i) => (
-                <th
-                  key={p.name}
-                  onClick={() => setSelected(i)}
-                  className={cx(
-                    "cursor-pointer border-l border-white/10 p-0 last:border-l-0",
-                    selected === i ? "bg-[#78f3c5]/10" : "bg-[#202129]",
-                  )}
-                >
-                  <div className="relative h-20 overflow-hidden">
-                    <div
-                      className="absolute -top-16 left-1/2 size-32 -translate-x-1/2 rounded-full shadow-[inset_-20px_-20px_30px_rgba(0,0,0,.45)]"
-                      style={{
-                        background: `radial-gradient(circle at 35% 30%, #fff9, ${p.tone} 35%, #14151a 80%)`,
-                      }}
-                    />
-                    <span className="absolute inset-x-0 bottom-3 font-bold">
-                      {p.name}
-                    </span>
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ["قیمت ماهانه", "monthly"],
-              ["قیمت ساعتی", "hourly"],
-              ["RAM", "ram"],
-              ["vCPU", "cpu"],
-              ["Disk", "disk"],
-            ].map(([label, key]) => (
-              <tr key={key}>
-                {plans.map((p, i) => (
-                  <td
-                    key={p.name}
-                    onClick={() => setSelected(i)}
-                    className={cx(
-                      "cursor-pointer border-l border-t border-white/10 px-3 py-4 last:border-l-0",
-                      selected === i
-                        ? "bg-[#78f3c5]/10 text-white"
-                        : "text-slate-300",
-                    )}
-                  >
-                    <span className="block text-[10px] text-slate-500">
-                      {label}
-                    </span>
-                    <strong className="mt-1 block font-medium">
-                      {p[key]}{" "}
-                      {key === "monthly" || key === "hourly" ? (
-                        <small>تومان</small>
-                      ) : (
-                        ""
-                      )}
-                    </strong>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-6 space-y-2 text-xs">
-        <p className="text-cyan-300">
-          <span className="ml-2 rounded border border-cyan-400 px-1.5 py-0.5">
-            توجه
-          </span>
-          مبلغ مالیات بر ارزش افزوده به هزینه‌ی پلن اضافه می‌شود.
-        </p>
-        <p className="text-amber-300">
-          <span className="ml-2 rounded border border-amber-400 px-1.5 py-0.5">
-            توجه
-          </span>
-          برای اجرای Next.js منابع پلن رایگان ممکن است کافی نباشد.
-        </p>
-      </div>
-      <div className="mt-7 flex flex-col gap-4 rounded-xl border border-white/10 bg-[#292b35] p-4 sm:flex-row sm:items-center">
-        <div>
-          <h2 className="font-semibold">کد تخفیف</h2>
-          <p className="mt-1 text-xs text-slate-400">
-            کد را وارد و قیمت نهایی را بررسی کنید.
-          </p>
-        </div>
-        <input
-          dir="ltr"
-          placeholder="برای مثال LIARA-OFF"
-          className="h-11 flex-1 rounded-lg border-b border-white/30 bg-black/10 px-4 outline-none focus:border-[#78f3c5]"
-        />
-      </div>
-      <div className="mt-8 flex justify-center">
-        <Button onClick={onCreate} size="lg" className="px-14">
-          ایجاد برنامه
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function CreateFlow({ onCancel, onComplete }) {
-  const [step, setStep] = useState(1);
-  const [runtime, setRuntime] = useState("Node.js");
-  const [name, setName] = useState("negah-store");
-  const [plan, setPlan] = useState(1);
-  useEffect(() => {
-    const f = (e) => {
-      if (e.key === "Escape") onCancel();
-    };
-    addEventListener("keydown", f);
-    return () => removeEventListener("keydown", f);
-  }, [onCancel]);
-  return (
-    <main className="min-h-screen bg-[#18191f] soft-grid">
-      {step === 1 ? (
-        <RuntimeStep
-          selected={runtime}
-          setSelected={setRuntime}
-          name={name}
-          setName={setName}
-          onNext={() => setStep(2)}
-          onCancel={onCancel}
-        />
-      ) : (
-        <PlanStep
-          selected={plan}
-          setSelected={setPlan}
-          onBack={() => setStep(1)}
-          onCreate={onComplete}
-        />
-      )}
-    </main>
   );
 }
 
