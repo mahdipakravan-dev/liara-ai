@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import "../src/index.css";
+import "./globals.css";
 import { iranYekan } from "@/lib/fonts";
 
 export const metadata = {

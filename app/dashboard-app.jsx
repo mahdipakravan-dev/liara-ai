@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   Bell,
@@ -32,11 +32,31 @@ import {
   Sparkles,
   Terminal,
   UploadCloud,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CreateFlow } from "@/src/features/create-application/create-flow";
+import { AssistantPanel } from "@/app/features/assistance/assistant-panel";
+import { CreateFlow } from "@/app/features/create-application/create-flow";
+import { DeploymentFlow } from "@/app/features/deployment/deployment-flow";
+import { HistoryView } from "@/app/features/deployment/history-view";
+
+const dashboardPages = {
+  overview: "اطلاعات کلی",
+  deploy: "استقرار جدید",
+  events: "رویدادها",
+  history: "تاریخچه",
+  reports: "گزارشات",
+  logs: "لاگ‌ها",
+  terminal: "خط فرمان",
+  disks: "دیسک‌ها",
+  domains: "دامنه‌ها",
+  resize: "تغییر اندازه",
+  settings: "تنظیمات",
+};
+
+const dashboardPageSlugs = Object.fromEntries(
+  Object.entries(dashboardPages).map(([slug, label]) => [label, slug]),
+);
 
 function IconButton({ label, children, className = "", ...props }) {
   return (
@@ -244,59 +264,7 @@ function Sidebar({ collapsed, setCollapsed, active, setActive }) {
   );
 }
 
-function AssistantPanel({ open, onClose, onSelect }) {
-  return (
-    <section
-      aria-label="دستیار استقرار"
-      className={cn(
-        "fixed bottom-5 left-5 z-50 w-[calc(100%-40px)] max-w-[370px] origin-bottom-left rounded-[26px] border border-[#78f3c5]/20 bg-[#22242d]/96 p-5 shadow-[0_24px_80px_rgba(0,0,0,.55)] backdrop-blur-2xl transition duration-300",
-        open
-          ? "scale-100 opacity-100"
-          : "pointer-events-none scale-90 opacity-0",
-      )}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="orb relative size-12 rounded-full" />
-          <div>
-            <p className="font-bold">دستیار لیارا</p>
-            <span className="text-xs text-[#78f3c5]">آماده‌ی کمک</span>
-          </div>
-        </div>
-        <IconButton label="بستن دستیار" onClick={onClose}>
-          <X size={18} />
-        </IconButton>
-      </div>
-      <div className="mt-5 rounded-2xl bg-black/20 p-4">
-        <h2 className="text-lg font-bold">بسیار خب!</h2>
-        <p className="mt-2 text-sm leading-7 text-slate-300">
-          من منتظرم کدهات رو روی لیارا آپلود کنی. یکی از روش‌های زیر رو انتخاب
-          کن؛ اگر سؤالی داشتی، روی همون روش کلیک کن.
-        </p>
-      </div>
-      <div className="relative mt-4 grid grid-cols-3 gap-2 before:absolute before:right-[16%] before:left-[16%] before:top-5 before:h-px before:bg-white/10">
-        {[
-          ["GitHub", GitBranch],
-          ["Drag & Drop", UploadCloud],
-          ["Liara CLI", Terminal],
-        ].map(([label, I]) => (
-          <button
-            key={label}
-            onClick={() => onSelect(label)}
-            className="relative z-10 flex flex-col items-center gap-2 rounded-xl p-2 text-[11px] text-slate-300 transition hover:bg-white/5 hover:text-white"
-          >
-            <span className="grid size-10 place-items-center rounded-xl border border-white/10 bg-[#292b35]">
-              <I size={18} />
-            </span>
-            {label}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function DeployVisual({ method }) {
+function DeployVisual({ method, onDeploy }) {
   const copy =
     method === "GitHub"
       ? [
@@ -376,34 +344,44 @@ function DeployVisual({ method }) {
           </li>
         ))}
       </ul>
-      <button
-        onClick={() =>
-          alert(
-            method === "GitHub"
-              ? "اتصال امن حساب گیت‌هاب آغاز شد."
-              : method === "Drag & Drop"
-                ? "انتخاب فایل پروژه باز می‌شود."
-                : "npm i -g @liara/cli",
-          )
-        }
-        className="primary-gradient mt-6 rounded-xl px-6 py-3 text-sm font-bold shadow-[0_10px_30px_rgba(50,203,216,.12)] transition hover:-translate-y-0.5"
-      >
-        {method === "GitHub"
-          ? "اتصال حساب"
-          : method === "Drag & Drop"
-            ? "انتخاب فایل"
-            : "کپی فرمان نصب"}
-      </button>
+      <Button onClick={() => onDeploy(method)} className="mt-6">دپلوی</Button>
     </div>
   );
 }
 
-function DeployDashboard({ onCreate }) {
+function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار جدید", deployment }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [active, setActive] = useState("استقرار جدید");
+  const [active, setActive] = useState(initialActive);
   const [method, setMethod] = useState("GitHub");
   const [assistant, setAssistant] = useState(true);
   const contentMargin = collapsed ? "md:mr-[76px]" : "md:mr-[236px]";
+
+  useEffect(() => {
+    function restoreDashboardPage() {
+      const slug = new URLSearchParams(window.location.search).get("dashboard");
+      if (dashboardPages[slug]) {
+        setActive(dashboardPages[slug]);
+        return;
+      }
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("dashboard", dashboardPageSlugs[initialActive]);
+      window.history.replaceState({}, "", url);
+    }
+
+    restoreDashboardPage();
+    window.addEventListener("popstate", restoreDashboardPage);
+    return () => window.removeEventListener("popstate", restoreDashboardPage);
+  }, [initialActive]);
+
+  function selectDashboardPage(label) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("page", "dashboard");
+    url.searchParams.set("dashboard", dashboardPageSlugs[label]);
+    window.history.pushState({}, "", url);
+    setActive(label);
+  }
+
   return (
     <div className="min-h-screen bg-[#18191f]">
       <TopHeader onCreate={onCreate} />
@@ -411,7 +389,7 @@ function DeployDashboard({ onCreate }) {
         collapsed={collapsed}
         setCollapsed={setCollapsed}
         active={active}
-        setActive={setActive}
+        setActive={selectDashboardPage}
       />
       <main
         className={cn(
@@ -419,7 +397,7 @@ function DeployDashboard({ onCreate }) {
           contentMargin,
         )}
       >
-        <div className="mx-auto max-w-[980px] px-5 py-10 lg:px-8 lg:py-16">
+        {active === "تاریخچه" ? <HistoryView deployment={deployment} /> : <div className="mx-auto max-w-[980px] px-5 py-10 lg:px-8 lg:py-16">
           <div className="mb-7 flex items-center justify-between">
             <div>
               <p className="text-xs text-slate-500">برنامه / فروشگاه نگــاه</p>
@@ -464,8 +442,9 @@ function DeployDashboard({ onCreate }) {
               </button>
             </div>
           </div>
-          <DeployVisual method={method} />
+          <DeployVisual method={method} onDeploy={onDeploy} />
         </div>
+        }
       </main>
       <button
         onClick={() => setAssistant(true)}
@@ -487,6 +466,7 @@ function DeployDashboard({ onCreate }) {
       </button>
       <AssistantPanel
         open={assistant}
+        message={deployment ? "در حال دپلوی، حواسم هست اگر به مشکل بخوره بررسی می‌کنم و باهم حلش می‌کنیم :)" : undefined}
         onClose={() => setAssistant(false)}
         onSelect={(m) => {
           setMethod(m);
@@ -499,12 +479,45 @@ function DeployDashboard({ onCreate }) {
 
 export default function App() {
   const [view, setView] = useState("dashboard");
+  const [method, setMethod] = useState("Liara CLI");
+  const [deployment, setDeployment] = useState(null);
+
+  useEffect(() => {
+    const validViews = new Set(["dashboard", "create", "deploy"]);
+
+    function restoreViewFromUrl() {
+      const page = new URLSearchParams(window.location.search).get("page");
+      setView(validViews.has(page) ? page : "dashboard");
+    }
+
+    restoreViewFromUrl();
+    window.addEventListener("popstate", restoreViewFromUrl);
+    return () => window.removeEventListener("popstate", restoreViewFromUrl);
+  }, []);
+
+  function navigate(page, { replace = false, dashboard } = {}) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("page", page);
+    if (dashboard) url.searchParams.set("dashboard", dashboard);
+    window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+    setView(page);
+  }
+
+  if (view === "deploy") {
+    return <DeploymentFlow method={method} onCancel={() => navigate("dashboard")} onComplete={(result) => { setDeployment(result); navigate("dashboard", { replace: true, dashboard: "history" }); }} />;
+  }
+
   return view === "dashboard" ? (
-    <DeployDashboard onCreate={() => setView("create")} />
+    <DeployDashboard
+      onCreate={() => navigate("create")}
+      onDeploy={(selectedMethod) => { setMethod(selectedMethod); navigate("deploy"); }}
+      initialActive={deployment ? "تاریخچه" : "استقرار جدید"}
+      deployment={deployment}
+    />
   ) : (
     <CreateFlow
-      onCancel={() => setView("dashboard")}
-      onComplete={() => setView("dashboard")}
+      onCancel={() => navigate("dashboard")}
+      onComplete={() => navigate("dashboard", { replace: true })}
     />
   );
 }
