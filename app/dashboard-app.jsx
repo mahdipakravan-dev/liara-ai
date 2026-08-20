@@ -39,6 +39,9 @@ import { AssistantPanel } from "@/app/features/assistance/assistant-panel";
 import { CreateFlow } from "@/app/features/create-application/create-flow";
 import { DeploymentFlow } from "@/app/features/deployment/deployment-flow";
 import { HistoryView } from "@/app/features/deployment/history-view";
+import { isFailedDeployment, resolveDeployment } from "@/lib/deployment";
+
+const defaultApplication = { name: "assistance", runtime: "next" };
 
 const dashboardPages = {
   overview: "اطلاعات کلی",
@@ -349,7 +352,7 @@ function DeployVisual({ method, onDeploy }) {
   );
 }
 
-function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار جدید", deployment }) {
+function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار جدید", deployment, application = defaultApplication }) {
   const [collapsed, setCollapsed] = useState(false);
   const [active, setActive] = useState(initialActive);
   const [method, setMethod] = useState("GitHub");
@@ -383,6 +386,24 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
     setActive(label);
   }
 
+  const onHistory = active === "تاریخچه";
+  const failed = isFailedDeployment(deployment?.status);
+  const scenario = onHistory ? (failed ? "error" : "history") : "overview";
+  // Logs travel with the deployment so Rahyar can debug a failure from any page.
+  const current = deployment ? resolveDeployment(deployment) : null;
+  const assistantContext = {
+    currentPage: onHistory ? "deployment-history" : dashboardPageSlugs[active],
+    currentStep: active,
+    applicationName: current?.applicationName ?? application?.name,
+    runtime: current?.runtime ?? application?.runtime,
+    deploymentMethod: current?.method ?? method,
+    deploymentStatus: current?.status,
+    deploymentId: current?.id,
+    port: current?.port,
+    zone: current?.zoneLabel,
+    logs: current?.logs,
+  };
+
   return (
     <div className="min-h-screen bg-[#18191f]">
       <TopHeader onCreate={onCreate} />
@@ -399,7 +420,7 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
           assistant && assistantMode === "docked" && "md:ml-[50vw]",
         )}
       >
-        {active === "تاریخچه" ? <HistoryView deployment={deployment} /> : <div className="mx-auto max-w-[980px] px-5 py-10 lg:px-8 lg:py-16">
+        {onHistory ? <HistoryView deployment={deployment} /> : <div className="mx-auto max-w-[980px] px-5 py-10 lg:px-8 lg:py-16">
           <div className="mb-7 flex items-center justify-between">
             <div>
               <p className="text-xs text-slate-500">برنامه / فروشگاه نگــاه</p>
@@ -453,12 +474,10 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
         onOpen={() => setAssistant(true)}
         mode={assistantMode}
         onModeChange={setAssistantMode}
-        scenario={active === "تاریخچه" ? (deployment?.status === "error" ? "error" : "history") : "overview"}
+        scenario={scenario}
+        context={assistantContext}
         onClose={() => setAssistant(false)}
-        onSelect={(m) => {
-          setMethod(m);
-          setAssistant(false);
-        }}
+        onSelect={setMethod}
       />
     </div>
   );
@@ -468,6 +487,7 @@ export default function App() {
   const [view, setView] = useState("dashboard");
   const [method, setMethod] = useState("Liara CLI");
   const [deployment, setDeployment] = useState(null);
+  const [application, setApplication] = useState(defaultApplication);
 
   useEffect(() => {
     const validViews = new Set(["dashboard", "create", "deploy"]);
@@ -491,7 +511,7 @@ export default function App() {
   }
 
   if (view === "deploy") {
-    return <DeploymentFlow method={method} onCancel={() => navigate("dashboard")} onComplete={(result) => { setDeployment(result); navigate("dashboard", { replace: true, dashboard: "history" }); }} />;
+    return <DeploymentFlow method={method} application={application} onCancel={() => navigate("dashboard")} onComplete={(result) => { setDeployment(result); navigate("dashboard", { replace: true, dashboard: "history" }); }} />;
   }
 
   return view === "dashboard" ? (
@@ -500,11 +520,12 @@ export default function App() {
       onDeploy={(selectedMethod) => { setMethod(selectedMethod); navigate("deploy"); }}
       initialActive={deployment ? "تاریخچه" : "استقرار جدید"}
       deployment={deployment}
+      application={application}
     />
   ) : (
     <CreateFlow
       onCancel={() => navigate("dashboard")}
-      onComplete={() => navigate("dashboard", { replace: true })}
+      onComplete={(created) => { setApplication(created); navigate("dashboard", { replace: true }); }}
     />
   );
 }

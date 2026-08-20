@@ -14,7 +14,7 @@ const zones = [
   { id: "germany", title: "آلمان", description: "مناسب کاربران اروپا و سرویس‌های بین‌المللی", ping: "۷۸ ms" },
 ];
 
-export function DeploymentFlow({ method, onCancel, onComplete }) {
+export function DeploymentFlow({ method, application = {}, onCancel, onComplete }) {
   const [step, setStep] = useState(1);
   const [port, setPort] = useState("3000");
   const [zone, setZone] = useState("iran");
@@ -39,6 +39,17 @@ export function DeploymentFlow({ method, onCancel, onComplete }) {
       setIsSubmitting(false);
     }
   }
+
+  const assistantContext = {
+    currentPage: "deployment-setup",
+    currentStep: step === 1 ? "تنظیمات و پورت (مرحله ۱ از ۲)" : "انتخاب منطقه‌ی ساخت (مرحله ۲ از ۲)",
+    applicationName: application.name,
+    runtime: application.runtime,
+    deploymentMethod: method,
+    deploymentStatus: isSubmitting ? "in-progress" : error ? "failed" : "draft",
+    port,
+    zone: zones.find((item) => item.id === zone)?.title,
+  };
 
   return (
     <>
@@ -87,7 +98,7 @@ export function DeploymentFlow({ method, onCancel, onComplete }) {
         </section>
       </div>
     </main>
-    <AssistantPanel open={assistantOpen} onOpen={() => setAssistantOpen(true)} onClose={() => setAssistantOpen(false)} mode={assistantMode} onModeChange={setAssistantMode} scenario="deploy" standalone />
+    <AssistantPanel open={assistantOpen} onOpen={() => setAssistantOpen(true)} onClose={() => setAssistantOpen(false)} mode={assistantMode} onModeChange={setAssistantMode} scenario="deploy" context={assistantContext} standalone />
     </>
   );
 }

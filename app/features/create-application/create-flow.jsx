@@ -36,7 +36,7 @@ export function CreateFlow({ onCancel, onComplete }) {
           selected={plan}
           setSelected={setPlan}
           onBack={() => setStep(1)}
-          onCreate={onComplete}
+          onCreate={() => onComplete({ name, runtime })}
         />
       )}
     </main>

@@ -1,68 +1,74 @@
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { convertToModelMessages, streamText } from "ai";
 import { NextResponse } from "next/server";
+
+import { logger, newRequestId, startRequestLog } from "@/lib/observability/logger";
+import {
+  clientKeyFrom,
+  createRateLimiter,
+  rateLimitHeaders,
+} from "@/lib/security/rate-limit";
+import { validateChatRequest } from "@/lib/security/validate";
+import { getAgentConfig, runAgent, STREAM_ERROR_MESSAGE } from "@/lib/agent/run-agent";
 
 export const runtime = "nodejs";
 
-const MAX_MESSAGES = 30;
-const MAX_MESSAGE_LENGTH = 4_000;
+// Module scope so the window survives between requests. Single-process only —
+// see the Redis note in lib/security/rate-limit.js.
+const checkRateLimit = createRateLimiter();
 
-const systemPrompt = `
-تو «رهیار»، دستیار فارسی‌زبان و صمیمی کنسول ابری لیارا هستی.
-به کاربر برای ساخت سرویس، استقرار، بررسی لاگ و رفع خطا کمک کن.
-پاسخ‌ها را دقیق، کوتاه و عملی نگه دار و اگر اطلاعات کافی نداری، سؤال روشن بپرس.
-هرگز کلید API، متغیر محیطی یا اطلاعات محرمانه درخواست نکن و ادعا نکن عملیاتی را واقعاً اجرا کرده‌ای.
-`.trim();
-
-function getConfig() {
-  const baseURL = process.env.LIARA_AI_BASE_URL?.replace(/\/$/, "");
-  const apiKey = process.env.LIARA_AI_API_KEY;
-  const model = process.env.LIARA_AI_MODEL;
-
-  if (!baseURL || !apiKey || !model) return null;
-  return { baseURL, apiKey, model };
+/** Error responses carry a code and a readable message, never a stack trace. */
+function fail({ status, code, error, requestId, headers }) {
+  return NextResponse.json({ error, code, requestId }, { status, headers });
 }
 
 export async function POST(request) {
-  const config = getConfig();
+  const requestId = newRequestId();
+
+  const config = getAgentConfig();
   if (!config) {
-    return NextResponse.json(
-      { error: "تنظیمات سرویس هوش مصنوعی لیارا کامل نیست." },
-      { status: 503 },
-    );
+    logger.error("agent not configured", { requestId });
+    return fail({
+      status: 503,
+      code: "not_configured",
+      error: "تنظیمات سرویس هوش مصنوعی لیارا کامل نیست.",
+      requestId,
+    });
   }
 
-  const body = await request.json().catch(() => null);
-  if (!Array.isArray(body?.messages) || body.messages.length === 0) {
-    return NextResponse.json({ error: "پیام معتبر ارسال نشده است." }, { status: 400 });
+  const clientKey = clientKeyFrom(request);
+  const limit = checkRateLimit(clientKey);
+  if (!limit.allowed) {
+    logger.warn("rate limit exceeded", { requestId, route: "/api/chat", limit: limit.limit });
+    return fail({
+      status: 429,
+      code: "rate_limited",
+      error: `تعداد درخواست‌ها بیش از حد مجاز است. ${limit.retryAfterSeconds.toLocaleString("fa-IR")} ثانیه دیگر دوباره تلاش کنید.`,
+      requestId,
+      headers: { ...rateLimitHeaders(limit), "retry-after": String(limit.retryAfterSeconds) },
+    });
   }
-  if (JSON.stringify(body.messages).length > MAX_MESSAGES * MAX_MESSAGE_LENGTH) {
-    return NextResponse.json({ error: "تاریخچه‌ی گفتگو بیش از حد مجاز است." }, { status: 413 });
+
+  const raw = await request.json().catch(() => null);
+  const validation = validateChatRequest(raw);
+  if (!validation.ok) {
+    logger.warn("invalid chat request", {
+      requestId,
+      code: validation.code,
+      detail: validation.detail,
+    });
+    return fail({ ...validation, requestId, headers: rateLimitHeaders(limit) });
   }
+
+  const log = startRequestLog({ requestId, route: "/api/chat", model: config.model });
 
   try {
-    const liara = createOpenAICompatible({
-      name: "liara",
-      baseURL: config.baseURL,
-      apiKey: config.apiKey,
-    });
-
-    const result = streamText({
-      model: liara.chatModel(config.model),
-      system: systemPrompt,
-      messages: await convertToModelMessages(body.messages.slice(-MAX_MESSAGES)),
-      timeout: 45_000,
-      maxRetries: 1,
-    });
-
-    return result.toUIMessageStreamResponse({
-      onError: (error) => {
-        console.error("Liara AI stream failed", error instanceof Error ? error.message : error);
-        return "ارتباط با رهیار برقرار نشد. کمی بعد دوباره تلاش کنید.";
-      },
-    });
+    return runAgent(validation.body, config, { log, headers: rateLimitHeaders(limit) });
   } catch (error) {
-    console.error("Liara AI request failed", error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: "ارتباط با رهیار برقرار نشد. کمی بعد دوباره تلاش کنید." }, { status: 502 });
+    log.finish({ success: false, errorType: "agent_start_failed", error });
+    return fail({
+      status: 502,
+      code: "agent_failed",
+      error: STREAM_ERROR_MESSAGE,
+      requestId,
+    });
   }
 }

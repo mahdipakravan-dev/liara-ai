@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 
+import { findDeployment, latestDeployment, startDeployment } from "@/lib/deployment-store";
+
 export async function POST(request) {
   const payload = await request.json();
   if (!payload.port || !payload.zone) return NextResponse.json({ message: "port and zone are required" }, { status: 400 });
 
-  const hasMockError = payload.zone === "germany";
+  return NextResponse.json(startDeployment(payload), { status: 202 });
+}
 
-  return NextResponse.json({
-    id: `dep_${Date.now()}`,
-    status: hasMockError ? "error" : "deploying",
-    error: hasMockError ? "Build failed: dependency installation timed out." : null,
-    version: "v1",
-    port: payload.port,
-    zone: payload.zone,
-    zoneLabel: payload.zone === "iran" ? "ایران" : "آلمان",
-    createdAt: new Date().toISOString(),
-  }, { status: 202 });
+/** Lets the tool layer read back a deployment the same way a real API would. */
+export async function GET(request) {
+  const id = new URL(request.url).searchParams.get("id");
+  const deployment = id ? findDeployment(id) : latestDeployment();
+
+  if (!deployment) return NextResponse.json({ message: "deployment not found" }, { status: 404 });
+  return NextResponse.json(deployment);
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { useEffect, useRef, useState } from "react";
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  ChevronDown,
   GitBranch,
   GripVertical,
   PanelLeft,
@@ -16,6 +18,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { createAgentContext } from "@/lib/agent/context";
 import {
   Conversation,
   ConversationContent,
@@ -33,13 +36,27 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@/app/components/ai-elements/prompt-input";
+import {
+  Source,
+  Sources,
+  SourcesContent,
+  SourcesTrigger,
+} from "@/app/components/ai-elements/sources";
+import {
+  Confirmation,
+  ConfirmationAccepted,
+  ConfirmationAction,
+  ConfirmationActions,
+  ConfirmationRejected,
+  ConfirmationRequest,
+  ConfirmationTitle,
+} from "@/app/components/ai-elements/confirmation";
 
 const scenarios = {
   overview: {
     image: "/images/assistant/rahiyar-hello.png",
     status: "همراه هوشمند شما در استقرار",
     text: "برای استقرار برنامه‌ات اینجام هستم؛ هر جا نیاز داشتی کنارت می‌مونم.",
-    showMethods: true,
   },
   deploy: {
     image: "/images/assistant/rahiyar-book.png",
@@ -59,11 +76,203 @@ const scenarios = {
   },
 };
 
-const methods = [
-  ["GitHub", "اتصال ریپو و استقرار", GitBranch],
-  ["Drag & Drop", "آپلود و استقرار", UploadCloud],
-  ["Liara CLI", "استقرار با CLI", Terminal],
-];
+/** Icons for the guided workflow cards; ids come from METHOD_OPTIONS. */
+const optionIcons = {
+  github: GitBranch,
+  "drag-drop": UploadCloud,
+  cli: Terminal,
+};
+
+/**
+ * The guided deployment step, driven by the `data-workflow` part the server
+ * streams. Picking a card just sends its label as a message, so the workflow
+ * advances through the same path as typing the answer.
+ */
+function WorkflowStep({ workflow, onPick, disabled }) {
+  if (!workflow?.active) return null;
+  const { progress, options, optionKind, nextStep, label } = workflow;
+
+  return (
+    <div className="mt-3 shrink-0 rounded-2xl border border-[#78f3c5]/25 bg-[#78f3c5]/5 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-[#78f3c5]">گام بعدی: {nextStep}</p>
+        <span className="shrink-0 text-[11px] text-slate-400">
+          {progress.done.toLocaleString("fa-IR")} از {progress.total.toLocaleString("fa-IR")}
+        </span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label={`پیشرفت استقرار: ${label}`}
+        aria-valuenow={progress.done}
+        aria-valuemin={0}
+        aria-valuemax={progress.total}
+        className="mt-2 h-1 overflow-hidden rounded-full bg-white/10"
+      >
+        <div
+          className="h-full rounded-full bg-[#78f3c5] transition-[width] duration-500"
+          style={{ width: `${(progress.done / progress.total) * 100}%` }}
+        />
+      </div>
+      {options.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {options.map((option) => {
+            const Icon = optionIcons[option.id];
+            return (
+              <button
+                key={option.id}
+                type="button"
+                disabled={disabled}
+                onClick={() => onPick(option, optionKind)}
+                title={option.hint}
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0d1f29] px-3 py-2 text-right text-xs transition hover:border-[#78f3c5]/50 hover:bg-[#78f3c5]/10 disabled:opacity-50"
+              >
+                {Icon && <Icon size={14} className="shrink-0 text-[#78f3c5]" />}
+                <span className="font-medium">{option.label}</span>
+                <span className="text-[10px] text-slate-400">{option.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Official Liara docs the answer was grounded in, streamed ahead of the text. */
+function MessageSources({ parts }) {
+  const sources = parts.filter((part) => part.type === "source-url");
+  if (sources.length === 0) return null;
+
+  return (
+    <Sources defaultOpen className="mt-3 mb-0 text-[#78f3c5]">
+      <SourcesTrigger count={sources.length}>
+        <p className="font-medium">منابع ({sources.length.toLocaleString("fa-IR")})</p>
+        <ChevronDown size={14} />
+      </SourcesTrigger>
+      <SourcesContent className="text-slate-300">
+        {sources.map((source) => (
+          <Source
+            key={source.sourceId}
+            href={source.url}
+            title={source.title}
+            className="hover:text-[#78f3c5]"
+          />
+        ))}
+      </SourcesContent>
+    </Sources>
+  );
+}
+
+/**
+ * The API returns `{ error, code, requestId }`; the SDK surfaces the raw body as
+ * the error message. Show the Persian sentence, not the JSON.
+ */
+function friendlyError(error) {
+  if (!error) return null;
+  try {
+    const parsed = JSON.parse(error.message);
+    return parsed.error ?? error.message;
+  } catch {
+    return error.message || "ارتباط با رهیار برقرار نشد.";
+  }
+}
+
+const readToolLabels = {
+  "tool-get_deployment": "بررسی وضعیت استقرار",
+  "tool-get_logs": "خواندن لاگ‌های استقرار",
+};
+
+/** Read-only tools run without asking, so the UI just reports that they ran. */
+function ReadToolTrace({ part }) {
+  const label = readToolLabels[part.type];
+  if (!label) return null;
+
+  const done = part.state === "output-available";
+  const failed = done && part.output?.ok === false;
+
+  return (
+    <p className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
+      <ShieldCheck size={12} className={failed ? "text-amber-400" : "text-[#78f3c5]"} />
+      <span className={done ? "" : "shimmer"}>
+        {label}
+        {failed ? ` — ${part.output.error.message}` : done ? " ✓" : "..."}
+      </span>
+    </p>
+  );
+}
+
+/**
+ * The write action. Two deliberate stages: Rahyar proposes, the user arms the
+ * action, and only the second click sends the approval that lets the server run
+ * it. Nothing here executes the tool — it only answers the approval request.
+ */
+function RetryConfirmation({ part, onRespond }) {
+  const [armed, setArmed] = useState(false);
+  if (part.type !== "tool-retry_deployment") return null;
+
+  const failed = part.state === "output-available" && part.output?.ok === false;
+  const result = part.output?.data;
+
+  return (
+    <Confirmation
+      approval={part.approval}
+      state={part.state}
+      className="mt-3 border-[#78f3c5]/30 bg-[#78f3c5]/5 text-right"
+    >
+      <ConfirmationTitle>
+        {armed
+          ? "آیا از استقرار مجدد مطمئن هستی؟ یک استقرار تازه شروع می‌شود."
+          : `می‌توانم استقرار را دوباره اجرا کنم${part.input?.reason ? ` (${part.input.reason})` : ""}.`}
+      </ConfirmationTitle>
+      <ConfirmationRequest>
+        <ConfirmationActions>
+          {armed ? (
+            <>
+              <ConfirmationAction
+                variant="ghost"
+                onClick={() => {
+                  setArmed(false);
+                  onRespond(part.approval.id, false);
+                }}
+              >
+                لغو
+              </ConfirmationAction>
+              <ConfirmationAction onClick={() => onRespond(part.approval.id, true)}>
+                تأیید
+              </ConfirmationAction>
+            </>
+          ) : (
+            <ConfirmationAction onClick={() => setArmed(true)}>استقرار مجدد</ConfirmationAction>
+          )}
+        </ConfirmationActions>
+      </ConfirmationRequest>
+      <ConfirmationAccepted>
+        <p className="text-xs text-[#78f3c5]">
+          {failed
+            ? `اجرای دوباره ممکن نشد: ${part.output.error.message}`
+            : result
+              ? `استقرار تازه با شناسه ${result.id} شروع شد (نسخه ${result.version}).`
+              : "در حال شروع استقرار تازه..."}
+        </p>
+      </ConfirmationAccepted>
+      <ConfirmationRejected>
+        <p className="text-xs text-slate-400">استقرار مجدد لغو شد؛ چیزی تغییر نکرد.</p>
+      </ConfirmationRejected>
+    </Confirmation>
+  );
+}
+
+function MessageTools({ parts, onRespond }) {
+  return parts
+    .filter((part) => typeof part.type === "string" && part.type.startsWith("tool-"))
+    .map((part) =>
+      part.type === "tool-retry_deployment" ? (
+        <RetryConfirmation key={part.toolCallId} part={part} onRespond={onRespond} />
+      ) : (
+        <ReadToolTrace key={part.toolCallId} part={part} />
+      ),
+    );
+}
 
 export function AssistantPanel({
   open,
@@ -74,9 +283,22 @@ export function AssistantPanel({
   onSelect = () => {},
   scenario = "overview",
   standalone = false,
+  context,
 }) {
-  const { messages, sendMessage, status, error, stop } = useChat();
+  // Approving a write action resumes the paused run automatically.
+  const { messages, sendMessage, status, error, stop, addToolApprovalResponse } = useChat({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+  });
   const [anchor, setAnchor] = useState({ x: 24, y: 240 });
+  // Latest snapshot the server streamed. Living in the message history is what
+  // keeps the guided flow alive across turns.
+  const workflow = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const part = messages[index].parts?.findLast?.((item) => item.type === "data-workflow");
+      if (part) return part.data;
+    }
+    return null;
+  }, [messages]);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const drag = useRef(null);
   const content = scenarios[scenario] || scenarios.overview;
@@ -124,10 +346,25 @@ export function AssistantPanel({
     height: popoverHeight,
   } : undefined;
 
+  const busy = status === "submitted" || status === "streaming";
+
+  function send(value) {
+    sendMessage(
+      { text: value },
+      { body: { context: createAgentContext({ scenario, ...context }), workflow } },
+    );
+  }
+
   function handleSubmit({ text }) {
     const value = text.trim();
-    if (!value || status === "submitted" || status === "streaming") return;
-    sendMessage({ text: value });
+    if (!value || busy) return;
+    send(value);
+  }
+
+  function handleWorkflowPick(option, kind) {
+    if (busy) return;
+    if (kind === "method") onSelect(option.label);
+    send(option.label);
   }
 
   return (<>
@@ -218,6 +455,16 @@ export function AssistantPanel({
                         : "rounded-bl-sm border-white/10 bg-[#202b35]",
                     )}
                   >
+                    {chatMessage.role === "assistant" &&
+                      status !== "streaming" &&
+                      !chatMessage.parts.some(
+                        (part) =>
+                          (part.type === "text" && part.text) || part.type?.startsWith("tool-"),
+                      ) && (
+                        <span className="text-slate-400">
+                          پاسخ رهیار ناتمام ماند. دوباره بپرس.
+                        </span>
+                      )}
                     {chatMessage.parts
                       .filter((part) => part.type === "text")
                       .map((part, partIndex) =>
@@ -237,6 +484,11 @@ export function AssistantPanel({
                           </span>
                         ),
                       )}
+                    <MessageTools
+                      parts={chatMessage.parts}
+                      onRespond={(id, approved) => addToolApprovalResponse({ id, approved })}
+                    />
+                    <MessageSources parts={chatMessage.parts} />
                   </MessageContent>
                 </Message>
               ))}
@@ -258,9 +510,11 @@ export function AssistantPanel({
 
           {error && (
             <p role="alert" className="mt-2 text-xs text-red-400">
-              {error.message || "ارتباط با رهیار برقرار نشد."}
+              {friendlyError(error)}
             </p>
           )}
+
+          <WorkflowStep workflow={workflow} onPick={handleWorkflowPick} disabled={busy} />
 
           <PromptInput onSubmit={handleSubmit} className="mt-3 shrink-0">
             <PromptInputBody>

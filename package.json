@@ -6,7 +6,16 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "docs:sync": "node scripts/sync-liara-docs.js",
+    "test:retrieval": "node scripts/check-retrieval.js",
+    "test:debug-skill": "node scripts/check-debug-skill.js",
+    "test:workflow": "node scripts/check-workflow.js",
+    "test:tools": "node scripts/check-tools.js",
+    "test:hardening": "node scripts/check-hardening.js",
+    "test": "npm run test:retrieval && npm run test:debug-skill && npm run test:workflow && npm run test:tools && npm run test:hardening",
+    "smoke": "node scripts/smoke.js",
+    "smoke:fast": "node scripts/smoke.js --fast"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.32",
