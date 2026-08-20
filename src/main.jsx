@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { createRoot } from "react-dom/client";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import {
   Activity,
   ArrowLeft,
@@ -42,7 +43,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import "./index.css";
+import { Button } from "@/components/ui/button";
 
 const cx = (...items) => items.filter(Boolean).join(" ");
 
@@ -681,13 +682,9 @@ function RuntimeStep({
         </button>
       </section>
       <div className="sticky bottom-4 mt-12 flex justify-end">
-        <button
-          disabled={!name}
-          onClick={onNext}
-          className="primary-gradient rounded-xl px-8 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button disabled={!name} onClick={onNext} size="lg">
           انتخاب پلن
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -820,12 +817,9 @@ function PlanStep({ selected, setSelected, onBack, onCreate }) {
         />
       </div>
       <div className="mt-8 flex justify-center">
-        <button
-          onClick={onCreate}
-          className="primary-gradient rounded-xl px-14 py-3.5 text-sm font-bold"
-        >
+        <Button onClick={onCreate} size="lg" className="px-14">
           ایجاد برنامه
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -866,7 +860,7 @@ function CreateFlow({ onCancel, onComplete }) {
   );
 }
 
-function App() {
+export default function App() {
   const [view, setView] = useState("dashboard");
   return view === "dashboard" ? (
     <DeployDashboard onCreate={() => setView("create")} />
@@ -877,9 +871,3 @@ function App() {
     />
   );
 }
-
-createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
