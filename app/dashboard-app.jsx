@@ -209,7 +209,7 @@ function Sidebar({ collapsed, setCollapsed, active, setActive }) {
     >
       <div className="flex h-full flex-col py-4">
         <div
-            className={cn(
+          className={cn(
             "mb-3 flex items-center text-[11px] text-slate-500",
             collapsed ? "justify-center" : "justify-between px-5",
           )}
@@ -347,12 +347,20 @@ function DeployVisual({ method, onDeploy }) {
           </li>
         ))}
       </ul>
-      <Button onClick={() => onDeploy(method)} className="mt-6">دپلوی</Button>
+      <Button onClick={() => onDeploy(method)} className="mt-6">
+        دپلوی
+      </Button>
     </div>
   );
 }
 
-function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار جدید", deployment, application = defaultApplication }) {
+function DeployDashboard({
+  onCreate,
+  onDeploy,
+  initialActive = "استقرار جدید",
+  deployment,
+  application = defaultApplication,
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [active, setActive] = useState(initialActive);
   const [method, setMethod] = useState("GitHub");
@@ -421,54 +429,59 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
           assistant && assistantMode === "docked" && "md:ml-[50vw]",
         )}
       >
-        {onHistory ? <HistoryView deployment={deployment} /> : <div className="mx-auto max-w-[980px] px-5 py-10 lg:px-8 lg:py-16">
-          <div className="mb-7 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-slate-500">برنامه / فروشگاه نگــاه</p>
-              <h1 className="mt-2 text-xl font-bold">استقرار جدید</h1>
-            </div>
-            <span className="flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/5 px-3 py-1.5 text-xs text-emerald-300">
-              <span className="size-2 rounded-full bg-emerald-400" />
-              سرویس آماده
-            </span>
-          </div>
-          <div className="flex border-b border-white/10" role="tablist">
-            {["GitHub", "Drag & Drop", "Liara CLI"].map((x) => (
-              <button
-                role="tab"
-                aria-selected={method === x}
-                onClick={() => setMethod(x)}
-                key={x}
-                className={cn(
-                  "relative px-6 py-4 text-sm transition after:absolute after:inset-x-0 after:-bottom-px after:h-0.5",
-                  method === x
-                    ? "text-[#78f3c5] after:bg-[#78f3c5]"
-                    : "text-slate-400 after:bg-transparent hover:text-white",
-                )}
-              >
-                {x}
-              </button>
-            ))}
-          </div>
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <span className="text-xs text-slate-500">
-                استقرار با استفاده از
+        {onHistory ? (
+          <HistoryView deployment={deployment} />
+        ) : (
+          <div className="mx-auto max-w-[980px] px-5 py-10 lg:px-8 lg:py-16">
+            <div className="mb-7 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500">
+                  برنامه / فروشگاه نگــاه
+                </p>
+                <h1 className="mt-2 text-xl font-bold">استقرار جدید</h1>
+              </div>
+              <span className="flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/5 px-3 py-1.5 text-xs text-emerald-300">
+                <span className="size-2 rounded-full bg-emerald-400" />
+                سرویس آماده
               </span>
-              <h2 className="mt-1 text-xl font-semibold">{method}</h2>
             </div>
-            <div className="flex gap-2">
-              <button className="flex items-center gap-2 rounded-lg bg-[#242b35] px-3 py-2 text-xs text-cyan-300 hover:bg-[#2b3440]">
-                <Play size={14} /> آموزش ویدیویی
-              </button>
-              <button className="flex items-center gap-2 rounded-lg border border-cyan-400/70 px-3 py-2 text-xs text-cyan-300 hover:bg-cyan-400/8">
-                <Download size={14} /> liara.json
-              </button>
+            <div className="flex border-b border-white/10" role="tablist">
+              {["GitHub", "Drag & Drop", "Liara CLI"].map((x) => (
+                <button
+                  role="tab"
+                  aria-selected={method === x}
+                  onClick={() => setMethod(x)}
+                  key={x}
+                  className={cn(
+                    "relative px-6 py-4 text-sm transition after:absolute after:inset-x-0 after:-bottom-px after:h-0.5",
+                    method === x
+                      ? "text-[#78f3c5] after:bg-[#78f3c5]"
+                      : "text-slate-400 after:bg-transparent hover:text-white",
+                  )}
+                >
+                  {x}
+                </button>
+              ))}
             </div>
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-xs text-slate-500">
+                  استقرار با استفاده از
+                </span>
+                <h2 className="mt-1 text-xl font-semibold">{method}</h2>
+              </div>
+              <div className="flex gap-2">
+                <button className="flex items-center gap-2 rounded-lg bg-[#242b35] px-3 py-2 text-xs text-cyan-300 hover:bg-[#2b3440]">
+                  <Play size={14} /> آموزش ویدیویی
+                </button>
+                <button className="flex items-center gap-2 rounded-lg border border-cyan-400/70 px-3 py-2 text-xs text-cyan-300 hover:bg-cyan-400/8">
+                  <Download size={14} /> liara.json
+                </button>
+              </div>
+            </div>
+            <DeployVisual method={method} onDeploy={onDeploy} />
           </div>
-          <DeployVisual method={method} onDeploy={onDeploy} />
-        </div>
-        }
+        )}
       </main>
       <AssistantPanel
         open={assistant}
@@ -477,10 +490,14 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
         onModeChange={setAssistantMode}
         scenario={scenario}
         context={assistantContext}
-        autoMessage={failed && current?.id ? {
-          id: `history-error-${current.id}`,
-          text: `استقرار با خطای کنسول متوقف شد. همین حالا خطا و لاگ‌ها را بررسی کن: ${current.error}`,
-        } : undefined}
+        autoMessage={
+          failed && current?.id
+            ? {
+                id: `history-error-${current.id}`,
+                text: `استقرار با خطای کنسول متوقف شد. همین حالا خطا و لاگ‌ها را بررسی کن: ${current.error}`,
+              }
+            : undefined
+        }
         onClose={() => setAssistant(false)}
         onSelect={setMethod}
       />
@@ -499,6 +516,17 @@ export default function App() {
     let pollId;
     let cancelled = false;
 
+    const params = new URLSearchParams(window.location.search);
+    debugger;
+    if (!params.toString()) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("dashboard", "history");
+      url.searchParams.set("page", "dashboard");
+      window.history.replaceState({}, "", url);
+      params.set("dashboard", "history");
+      params.set("page", "dashboard");
+    }
+
     function restoreViewFromUrl() {
       const page = new URLSearchParams(window.location.search).get("page");
       setView(validViews.has(page) ? page : "dashboard");
@@ -506,36 +534,37 @@ export default function App() {
 
     restoreViewFromUrl();
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("page") === "dashboard" && params.get("dashboard") === "history") {
-      async function startHistoryScenario() {
-        const response = await fetch("/api/deployments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            application: defaultApplication.name,
-            runtime: defaultApplication.runtime,
-            method: "GitHub",
-            port: "3000",
-            zone: "germany",
-            mockScenario: "history-error",
-          }),
-        });
-        if (!response.ok || cancelled) return;
+    async function startHistoryScenario() {
+      const response = await fetch("/api/deployments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          application: defaultApplication.name,
+          runtime: defaultApplication.runtime,
+          method: "GitHub",
+          port: "3000",
+          zone: "germany",
+          mockScenario: "history-error",
+        }),
+      });
+      if (!response.ok || cancelled) return;
 
-        const started = await response.json();
-        setDeployment(started);
-        pollId = window.setInterval(async () => {
-          const deploymentResponse = await fetch(`/api/deployments?id=${encodeURIComponent(started.id)}`, { cache: "no-store" });
-          if (!deploymentResponse.ok || cancelled) return;
-          const nextDeployment = await deploymentResponse.json();
-          setDeployment(nextDeployment);
-          if (isFailedDeployment(nextDeployment.status)) window.clearInterval(pollId);
-        }, 500);
-      }
-
-      startHistoryScenario();
+      const started = await response.json();
+      setDeployment(started);
+      pollId = window.setInterval(async () => {
+        const deploymentResponse = await fetch(
+          `/api/deployments?id=${encodeURIComponent(started.id)}`,
+          { cache: "no-store" },
+        );
+        if (!deploymentResponse.ok || cancelled) return;
+        const nextDeployment = await deploymentResponse.json();
+        setDeployment(nextDeployment);
+        if (isFailedDeployment(nextDeployment.status))
+          window.clearInterval(pollId);
+      }, 500);
     }
+
+    startHistoryScenario();
 
     window.addEventListener("popstate", restoreViewFromUrl);
     return () => {
@@ -554,21 +583,37 @@ export default function App() {
   }
 
   if (view === "deploy") {
-    return <DeploymentFlow method={method} application={application} onCancel={() => navigate("dashboard")} onComplete={(result) => { setDeployment(result); navigate("dashboard", { replace: true, dashboard: "history" }); }} />;
+    return (
+      <DeploymentFlow
+        method={method}
+        application={application}
+        onCancel={() => navigate("dashboard")}
+        onComplete={(result) => {
+          setDeployment(result);
+          navigate("dashboard", { replace: true, dashboard: "history" });
+        }}
+      />
+    );
   }
 
   return view === "dashboard" ? (
     <DeployDashboard
       onCreate={() => navigate("create")}
-      onDeploy={(selectedMethod) => { setMethod(selectedMethod); navigate("deploy"); }}
-      initialActive={deployment ? "تاریخچه" : "استقرار جدید"}
+      onDeploy={(selectedMethod) => {
+        setMethod(selectedMethod);
+        navigate("deploy");
+      }}
+      initialActive={true ? "تاریخچه" : "استقرار جدید"}
       deployment={deployment}
       application={application}
     />
   ) : (
     <CreateFlow
       onCancel={() => navigate("dashboard")}
-      onComplete={(created) => { setApplication(created); navigate("dashboard", { replace: true }); }}
+      onComplete={(created) => {
+        setApplication(created);
+        navigate("dashboard", { replace: true });
+      }}
     />
   );
 }
