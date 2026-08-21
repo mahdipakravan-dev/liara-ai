@@ -402,6 +402,7 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
     port: current?.port,
     zone: current?.zoneLabel,
     logs: current?.logs,
+    error: current?.error,
   };
 
   return (
@@ -476,6 +477,10 @@ function DeployDashboard({ onCreate, onDeploy, initialActive = "استقرار �
         onModeChange={setAssistantMode}
         scenario={scenario}
         context={assistantContext}
+        autoMessage={failed && current?.id ? {
+          id: `history-error-${current.id}`,
+          text: `استقرار با خطای کنسول متوقف شد. همین حالا خطا و لاگ‌ها را بررسی کن: ${current.error}`,
+        } : undefined}
         onClose={() => setAssistant(false)}
         onSelect={setMethod}
       />
@@ -491,6 +496,8 @@ export default function App() {
 
   useEffect(() => {
     const validViews = new Set(["dashboard", "create", "deploy"]);
+    let pollId;
+    let cancelled = false;
 
     function restoreViewFromUrl() {
       const page = new URLSearchParams(window.location.search).get("page");
@@ -498,8 +505,44 @@ export default function App() {
     }
 
     restoreViewFromUrl();
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("page") === "dashboard" && params.get("dashboard") === "history") {
+      async function startHistoryScenario() {
+        const response = await fetch("/api/deployments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            application: defaultApplication.name,
+            runtime: defaultApplication.runtime,
+            method: "GitHub",
+            port: "3000",
+            zone: "germany",
+            mockScenario: "history-error",
+          }),
+        });
+        if (!response.ok || cancelled) return;
+
+        const started = await response.json();
+        setDeployment(started);
+        pollId = window.setInterval(async () => {
+          const deploymentResponse = await fetch(`/api/deployments?id=${encodeURIComponent(started.id)}`, { cache: "no-store" });
+          if (!deploymentResponse.ok || cancelled) return;
+          const nextDeployment = await deploymentResponse.json();
+          setDeployment(nextDeployment);
+          if (isFailedDeployment(nextDeployment.status)) window.clearInterval(pollId);
+        }, 500);
+      }
+
+      startHistoryScenario();
+    }
+
     window.addEventListener("popstate", restoreViewFromUrl);
-    return () => window.removeEventListener("popstate", restoreViewFromUrl);
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+      window.removeEventListener("popstate", restoreViewFromUrl);
+    };
   }, []);
 
   function navigate(page, { replace = false, dashboard } = {}) {

@@ -8,8 +8,7 @@ import {
   ChevronDown,
   GitBranch,
   GripVertical,
-  PanelLeft,
-  PictureInPicture2,
+  LoaderCircle,
   ShieldCheck,
   Terminal,
   UploadCloud,
@@ -94,25 +93,6 @@ function WorkflowStep({ workflow, onPick, disabled }) {
 
   return (
     <div className="mt-3 shrink-0 rounded-2xl border border-[#78f3c5]/25 bg-[#78f3c5]/5 p-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-[#78f3c5]">گام بعدی: {nextStep}</p>
-        <span className="shrink-0 text-[11px] text-slate-400">
-          {progress.done.toLocaleString("fa-IR")} از {progress.total.toLocaleString("fa-IR")}
-        </span>
-      </div>
-      <div
-        role="progressbar"
-        aria-label={`پیشرفت استقرار: ${label}`}
-        aria-valuenow={progress.done}
-        aria-valuemin={0}
-        aria-valuemax={progress.total}
-        className="mt-2 h-1 overflow-hidden rounded-full bg-white/10"
-      >
-        <div
-          className="h-full rounded-full bg-[#78f3c5] transition-[width] duration-500"
-          style={{ width: `${(progress.done / progress.total) * 100}%` }}
-        />
-      </div>
       {options.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {options.map((option) => {
@@ -128,7 +108,9 @@ function WorkflowStep({ workflow, onPick, disabled }) {
               >
                 {Icon && <Icon size={14} className="shrink-0 text-[#78f3c5]" />}
                 <span className="font-medium">{option.label}</span>
-                <span className="text-[10px] text-slate-400">{option.hint}</span>
+                <span className="text-[10px] text-slate-400">
+                  {option.hint}
+                </span>
               </button>
             );
           })}
@@ -139,14 +121,28 @@ function WorkflowStep({ workflow, onPick, disabled }) {
 }
 
 /** Official Liara docs the answer was grounded in, streamed ahead of the text. */
-function MessageSources({ parts }) {
+function MessageSources({ parts, isStreaming = false }) {
   const sources = parts.filter((part) => part.type === "source-url");
   if (sources.length === 0) return null;
 
+  if (isStreaming) {
+    return (
+      <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#78f3c5]/8 px-3 py-2 text-xs text-[#78f3c5]">
+        <LoaderCircle className="size-3.5 animate-spin" />
+        <span>
+          در حال بررسی {sources.length.toLocaleString("fa-IR")} منبع و
+          آماده‌کردن پاسخ...
+        </span>
+      </div>
+    );
+  }
+
   return (
-    <Sources defaultOpen className="mt-3 mb-0 text-[#78f3c5]">
+    <Sources className="mt-3 mb-0 text-[#78f3c5]">
       <SourcesTrigger count={sources.length}>
-        <p className="font-medium">منابع ({sources.length.toLocaleString("fa-IR")})</p>
+        <p className="font-medium">
+          منابع پاسخ ({sources.length.toLocaleString("fa-IR")})
+        </p>
         <ChevronDown size={14} />
       </SourcesTrigger>
       <SourcesContent className="text-slate-300">
@@ -192,7 +188,10 @@ function ReadToolTrace({ part }) {
 
   return (
     <p className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
-      <ShieldCheck size={12} className={failed ? "text-amber-400" : "text-[#78f3c5]"} />
+      <ShieldCheck
+        size={12}
+        className={failed ? "text-amber-400" : "text-[#78f3c5]"}
+      />
       <span className={done ? "" : "shimmer"}>
         {label}
         {failed ? ` — ${part.output.error.message}` : done ? " ✓" : "..."}
@@ -237,12 +236,16 @@ function RetryConfirmation({ part, onRespond }) {
               >
                 لغو
               </ConfirmationAction>
-              <ConfirmationAction onClick={() => onRespond(part.approval.id, true)}>
+              <ConfirmationAction
+                onClick={() => onRespond(part.approval.id, true)}
+              >
                 تأیید
               </ConfirmationAction>
             </>
           ) : (
-            <ConfirmationAction onClick={() => setArmed(true)}>استقرار مجدد</ConfirmationAction>
+            <ConfirmationAction onClick={() => setArmed(true)}>
+              استقرار مجدد
+            </ConfirmationAction>
           )}
         </ConfirmationActions>
       </ConfirmationRequest>
@@ -256,7 +259,9 @@ function RetryConfirmation({ part, onRespond }) {
         </p>
       </ConfirmationAccepted>
       <ConfirmationRejected>
-        <p className="text-xs text-slate-400">استقرار مجدد لغو شد؛ چیزی تغییر نکرد.</p>
+        <p className="text-xs text-slate-400">
+          استقرار مجدد لغو شد؛ چیزی تغییر نکرد.
+        </p>
       </ConfirmationRejected>
     </Confirmation>
   );
@@ -264,10 +269,16 @@ function RetryConfirmation({ part, onRespond }) {
 
 function MessageTools({ parts, onRespond }) {
   return parts
-    .filter((part) => typeof part.type === "string" && part.type.startsWith("tool-"))
+    .filter(
+      (part) => typeof part.type === "string" && part.type.startsWith("tool-"),
+    )
     .map((part) =>
       part.type === "tool-retry_deployment" ? (
-        <RetryConfirmation key={part.toolCallId} part={part} onRespond={onRespond} />
+        <RetryConfirmation
+          key={part.toolCallId}
+          part={part}
+          onRespond={onRespond}
+        />
       ) : (
         <ReadToolTrace key={part.toolCallId} part={part} />
       ),
@@ -279,14 +290,21 @@ export function AssistantPanel({
   onOpen,
   onClose,
   mode = "docked",
-  onModeChange,
   onSelect = () => {},
   scenario = "overview",
   standalone = false,
   context,
+  autoMessage,
 }) {
   // Approving a write action resumes the paused run automatically.
-  const { messages, sendMessage, status, error, stop, addToolApprovalResponse } = useChat({
+  const {
+    messages,
+    sendMessage,
+    status,
+    error,
+    stop,
+    addToolApprovalResponse,
+  } = useChat({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const [anchor, setAnchor] = useState({ x: 24, y: 240 });
@@ -294,19 +312,25 @@ export function AssistantPanel({
   // keeps the guided flow alive across turns.
   const workflow = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const part = messages[index].parts?.findLast?.((item) => item.type === "data-workflow");
+      const part = messages[index].parts?.findLast?.(
+        (item) => item.type === "data-workflow",
+      );
       if (part) return part.data;
     }
     return null;
   }, [messages]);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const drag = useRef(null);
+  const sentAutoMessages = useRef(new Set());
   const content = scenarios[scenario] || scenarios.overview;
 
   useEffect(() => {
     function syncViewport() {
       setViewport({ width: window.innerWidth, height: window.innerHeight });
-      setAnchor((point) => ({ x: Math.min(point.x, window.innerWidth - 72), y: Math.min(point.y, window.innerHeight - 72) }));
+      setAnchor((point) => ({
+        x: Math.min(point.x, window.innerWidth - 72),
+        y: Math.min(point.y, window.innerHeight - 72),
+      }));
     }
     syncViewport();
     window.addEventListener("resize", syncViewport);
@@ -314,7 +338,14 @@ export function AssistantPanel({
   }, []);
 
   function startDragging(event) {
-    drag.current = { id: event.pointerId, startX: event.clientX, startY: event.clientY, x: anchor.x, y: anchor.y, moved: false };
+    drag.current = {
+      id: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      x: anchor.x,
+      y: anchor.y,
+      moved: false,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -323,7 +354,10 @@ export function AssistantPanel({
     const dx = event.clientX - drag.current.startX;
     const dy = event.clientY - drag.current.startY;
     if (Math.abs(dx) + Math.abs(dy) > 5) drag.current.moved = true;
-    setAnchor({ x: Math.max(12, Math.min(viewport.width - 68, drag.current.x + dx)), y: Math.max(12, Math.min(viewport.height - 68, drag.current.y + dy)) });
+    setAnchor({
+      x: Math.max(12, Math.min(viewport.width - 68, drag.current.x + dx)),
+      y: Math.max(12, Math.min(viewport.height - 68, drag.current.y + dy)),
+    });
   }
 
   function finishDragging(event) {
@@ -335,23 +369,60 @@ export function AssistantPanel({
 
   const popoverWidth = Math.min(440, Math.max(320, viewport.width - 40));
   const popoverHeight = Math.min(560, Math.max(360, viewport.height - 40));
-  const popoverTop = anchor.y + 68 + popoverHeight <= viewport.height - 20
-    ? anchor.y + 68
-    : Math.max(20, anchor.y - popoverHeight - 12);
-  const popoverStyle = mode === "popover" ? {
-    left: Math.max(20, Math.min(anchor.x, viewport.width - popoverWidth - 20)),
-    top: popoverTop,
-    bottom: "auto",
-    width: popoverWidth,
-    height: popoverHeight,
-  } : undefined;
+  const popoverTop =
+    anchor.y + 68 + popoverHeight <= viewport.height - 20
+      ? anchor.y + 68
+      : Math.max(20, anchor.y - popoverHeight - 12);
+  const popoverStyle =
+    mode === "popover"
+      ? {
+          left: Math.max(
+            20,
+            Math.min(anchor.x, viewport.width - popoverWidth - 20),
+          ),
+          top: popoverTop,
+          bottom: "auto",
+          width: popoverWidth,
+          height: popoverHeight,
+        }
+      : undefined;
 
   const busy = status === "submitted" || status === "streaming";
+  const latestMessage = messages.at(-1);
+  const latestIsAssistant = latestMessage?.role === "assistant";
+  const latestHasText =
+    latestIsAssistant &&
+    latestMessage.parts?.some(
+      (part) => part.type === "text" && part.text?.trim(),
+    );
+  const latestHasSources =
+    latestIsAssistant &&
+    latestMessage.parts?.some((part) => part.type === "source-url");
+
+  useEffect(() => {
+    if (!autoMessage?.id || !autoMessage.text || busy || sentAutoMessages.current.has(autoMessage.id)) return;
+    sentAutoMessages.current.add(autoMessage.id);
+    onOpen();
+    sendMessage(
+      { text: autoMessage.text },
+      {
+        body: {
+          context: createAgentContext({ scenario, ...context }),
+          workflow,
+        },
+      },
+    );
+  }, [autoMessage, busy, context, onOpen, scenario, sendMessage, workflow]);
 
   function send(value) {
     sendMessage(
       { text: value },
-      { body: { context: createAgentContext({ scenario, ...context }), workflow } },
+      {
+        body: {
+          context: createAgentContext({ scenario, ...context }),
+          workflow,
+        },
+      },
     );
   }
 
@@ -367,180 +438,203 @@ export function AssistantPanel({
     send(option.label);
   }
 
-  return (<>
-    {(!open || mode === "popover") && <button type="button" aria-label={open ? "بستن رهیار" : "بازکردن رهیار"} title="برای جابه‌جایی بکشید" onPointerDown={startDragging} onPointerMove={moveAnchor} onPointerUp={finishDragging} style={{ left: anchor.x, top: anchor.y, touchAction: "none" }} className="orb fixed z-50 grid size-14 cursor-grab place-items-center rounded-full active:cursor-grabbing"><GripVertical size={20} /></button>}
-    <section
-      aria-label="دستیار استقرار"
-      aria-hidden={!open}
-      className={cn(
-        "fixed bottom-5 left-5 z-50 flex max-h-[calc(100vh-40px)] w-[calc(100%-40px)] origin-bottom-left flex-col overflow-hidden rounded-[26px] border border-[#78f3c5]/45 bg-[#07141d]/98 p-5 shadow-[0_24px_90px_rgba(0,0,0,.65)] backdrop-blur-2xl transition duration-500 ease-out md:bottom-5 md:left-5 md:z-30 md:max-h-none md:w-[calc(50vw-40px)] md:p-7",
-        standalone ? "md:top-5" : "md:top-[154px]",
-        mode === "popover" && "md:top-auto md:bottom-auto md:left-auto md:w-auto md:p-5",
-        open
-          ? "assistant-attention scale-100 opacity-100"
-          : "pointer-events-none translate-y-8 scale-95 opacity-0",
+  return (
+    <>
+      {(!open || mode === "popover") && (
+        <button
+          type="button"
+          aria-label={open ? "بستن رهیار" : "بازکردن رهیار"}
+          title="برای جابه‌جایی بکشید"
+          onPointerDown={startDragging}
+          onPointerMove={moveAnchor}
+          onPointerUp={finishDragging}
+          style={{ left: anchor.x, top: anchor.y, touchAction: "none" }}
+          className="orb fixed z-50 grid size-14 cursor-grab place-items-center rounded-full active:cursor-grabbing "
+        >
+          <GripVertical size={20} />
+        </button>
       )}
-      style={popoverStyle}
-    >
-      <div className="absolute top-4 left-4 flex gap-1"><Button
-        aria-label="بستن دستیار"
-        title="بستن دستیار"
-        variant="ghost"
-        size="icon"
-        onClick={onClose}
-        className="absolute top-4 left-4"
+      <section
+        aria-label="دستیار استقرار"
+        aria-hidden={!open}
+        className={cn(
+          "fixed bottom-5 left-5 z-50 flex max-h-[calc(100vh-40px)] w-[calc(100%-40px)] origin-bottom-left flex-col overflow-hidden rounded-[26px] border border-[#78f3c5]/45 bg-[#07141d]/98 p-5 shadow-[0_24px_90px_rgba(0,0,0,.65)] backdrop-blur-2xl transition duration-500 ease-out md:bottom-5 md:left-5 md:z-30 md:max-h-none md:w-[calc(50vw-40px)] md:p-7",
+          standalone ? "md:top-5" : "md:top-[154px]",
+          mode === "popover" &&
+            "md:top-auto md:bottom-auto md:left-auto md:w-auto md:p-5",
+          open
+            ? "assistant-attention scale-100 opacity-100"
+            : "pointer-events-none translate-y-8 scale-95 opacity-0",
+        )}
+        style={popoverStyle}
       >
-        <X data-icon="inline-start" />
-      </Button><Button aria-label={mode === "docked" ? "نمایش پاپ‌اور" : "نمایش نیم‌صفحه"} title={mode === "docked" ? "نمایش پاپ‌اور" : "نمایش نیم‌صفحه"} variant="ghost" size="icon" onClick={() => onModeChange(mode === "docked" ? "popover" : "docked")}>{mode === "docked" ? <PictureInPicture2 data-icon="inline-start" /> : <PanelLeft data-icon="inline-start" />}</Button></div>
+        <Button
+          aria-label="بستن دستیار"
+          title="بستن دستیار"
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="absolute top-4 left-4 z-10"
+        >
+          <X data-icon="inline-start" />
+        </Button>
 
-      <div className="grid min-h-0 flex-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(220px,.9fr)]">
-        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden pt-8 md:pt-5">
-          <header className="shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="orb relative size-12 rounded-full" />
-              <h1 className="text-3xl font-black tracking-tight">
-                دستیار <span className="text-[#78f3c5]">رهیار</span>
-              </h1>
-            </div>
-            <p className="mt-4 text-base font-semibold text-[#78f3c5]">
-              {content.status}
-            </p>
-          </header>
+        <div className="grid min-h-0 flex-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(220px,.9fr)]">
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden pt-8 md:pt-5">
+            <header className="shrink-0 border-b border-white/8 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="orb relative size-10 rounded-full mr-6" />
+                <div>
+                  <h1 className="text-sm font-bold">رهیار</h1>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        busy ? "animate-pulse bg-amber-400" : "bg-[#78f3c5]",
+                      )}
+                    />
+                    {busy ? "در حال پاسخ‌گویی" : "آنلاین"}
+                  </p>
+                </div>
+              </div>
+            </header>
 
-          <div className="mt-6 shrink-0 text-sm leading-7 text-slate-200">
-            <p>سلام مهدی جان! 👋</p>
-            <p>من رهیارم؛ دستیار هوشمند لیارا.</p>
-            <p>{content.text}</p>
-            {content.link && (
-              <p className="mt-3">
-                <a
-                  href={content.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-[#78f3c5] underline-offset-4 hover:underline"
-                >
-                  مشاهده‌ی داکیومنتیشن دپلوی
-                </a>
-                <span className="mr-2 text-xs text-slate-400">
-                  همچنان در چت پاسخگو هستم.
-                </span>
+            <Conversation className="assistant-scrollbars-hidden scroll-fade mt-2 min-h-32 flex-1">
+              <ConversationContent className="gap-3 px-2 py-8">
+                {messages.length === 0 && (
+                  <div className="m-auto flex w-full max-w-sm flex-col gap-2 px-2">
+                    <p className="mb-1 text-center text-xs text-slate-400">
+                      از کجا شروع کنیم؟
+                    </p>
+                    {[
+                      "وضعیت آخرین استقرار را بررسی کن",
+                      "خطای استقرار را از روی لاگ‌ها پیدا کن",
+                    ].map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => send(suggestion)}
+                        className="rounded-xl border border-white/10 bg-white/[.03] px-3 py-2.5 text-right text-xs text-slate-200 transition hover:border-[#78f3c5]/40 hover:bg-[#78f3c5]/8"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {messages.map((chatMessage, messageIndex) => (
+                  <Message
+                    from={chatMessage.role}
+                    key={chatMessage.id}
+                    className={
+                      chatMessage.role === "user"
+                        ? "items-end self-end"
+                        : "items-start self-start"
+                    }
+                  >
+                    <MessageContent
+                      dir="rtl"
+                      className={cn(
+                        "max-w-[88%] rounded-2xl  px-4 py-3 text-right shadow-lg",
+                        chatMessage.role === "user"
+                          ? "rounded-br-sm border-[#78f3c5]/25 bg-[#78f3c5]/10"
+                          : "rounded-bl-sm border-white/10 bg-[#202b35]",
+                      )}
+                    >
+                      {chatMessage.role === "assistant" &&
+                        status !== "streaming" &&
+                        !chatMessage.parts.some(
+                          (part) =>
+                            (part.type === "text" && part.text) ||
+                            part.type?.startsWith("tool-"),
+                        ) && (
+                          <span className="text-slate-400">
+                            پاسخ رهیار ناتمام ماند. دوباره بپرس.
+                          </span>
+                        )}
+                      {chatMessage.parts
+                        .filter((part) => part.type === "text")
+                        .map((part, partIndex) =>
+                          chatMessage.role === "assistant" ? (
+                            <MessageResponse
+                              isAnimating={
+                                status === "streaming" &&
+                                messageIndex === messages.length - 1
+                              }
+                              key={`${chatMessage.id}-${partIndex}`}
+                            >
+                              {part.text}
+                            </MessageResponse>
+                          ) : (
+                            <span key={`${chatMessage.id}-${partIndex}`}>
+                              {part.text}
+                            </span>
+                          ),
+                        )}
+                      <MessageTools
+                        parts={chatMessage.parts}
+                        onRespond={(id, approved) =>
+                          addToolApprovalResponse({ id, approved })
+                        }
+                      />
+                      <MessageSources
+                        parts={chatMessage.parts}
+                        isStreaming={
+                          status === "streaming" &&
+                          messageIndex === messages.length - 1
+                        }
+                      />
+                    </MessageContent>
+                  </Message>
+                ))}
+                {busy && !latestHasText && !latestHasSources && (
+                  <Message from="assistant" className="items-start self-start">
+                    <MessageContent
+                      dir="rtl"
+                      className="rounded-2xl rounded-bl-sm border border-white/10 bg-[#202b35] px-4 py-3"
+                    >
+                      <span className="flex items-center gap-2 text-slate-300">
+                        <LoaderCircle className="size-4 animate-spin text-[#78f3c5]" />
+                        در حال فکر کردن...
+                      </span>
+                    </MessageContent>
+                  </Message>
+                )}
+              </ConversationContent>
+              <ConversationScrollButton />
+            </Conversation>
+
+            {error && (
+              <p role="alert" className="mt-2 text-xs text-red-400">
+                {friendlyError(error)}
               </p>
             )}
+
+            <PromptInput onSubmit={handleSubmit} className="mt-3 shrink-0">
+              <PromptInputBody>
+                <PromptInputTextarea
+                  aria-label="پیام به دستیار رهیار"
+                  placeholder="از رهیار بپرس..."
+                />
+              </PromptInputBody>
+              <PromptInputFooter>
+                <span aria-live="polite" className="text-[11px] text-slate-500">
+                  {busy ? "رهیار در حال نوشتن پاسخ است" : ""}
+                </span>
+                <PromptInputSubmit status={status} onStop={stop} />
+              </PromptInputFooter>
+            </PromptInput>
           </div>
 
-          <Conversation className="scroll-fade mt-4 min-h-32 flex-1">
-            <ConversationContent className="gap-3 px-2 py-8">
-              {messages.length === 0 && (
-                <p className="m-auto text-center text-xs leading-6 text-slate-500">
-                  سؤالت درباره‌ی ساخت سرویس، دپلوی یا خطاهای استقرار را از رهیار
-                  بپرس.
-                </p>
-              )}
-              {messages.map((chatMessage, messageIndex) => (
-                <Message
-                  from={chatMessage.role}
-                  key={chatMessage.id}
-                  className={
-                    chatMessage.role === "user"
-                      ? "items-end self-end"
-                      : "items-start self-start"
-                  }
-                >
-                  <MessageContent
-                    dir="rtl"
-                    className={cn(
-                      "max-w-[88%] rounded-2xl  px-4 py-3 text-right shadow-lg",
-                      chatMessage.role === "user"
-                        ? "rounded-br-sm border-[#78f3c5]/25 bg-[#78f3c5]/10"
-                        : "rounded-bl-sm border-white/10 bg-[#202b35]",
-                    )}
-                  >
-                    {chatMessage.role === "assistant" &&
-                      status !== "streaming" &&
-                      !chatMessage.parts.some(
-                        (part) =>
-                          (part.type === "text" && part.text) || part.type?.startsWith("tool-"),
-                      ) && (
-                        <span className="text-slate-400">
-                          پاسخ رهیار ناتمام ماند. دوباره بپرس.
-                        </span>
-                      )}
-                    {chatMessage.parts
-                      .filter((part) => part.type === "text")
-                      .map((part, partIndex) =>
-                        chatMessage.role === "assistant" ? (
-                          <MessageResponse
-                            isAnimating={
-                              status === "streaming" &&
-                              messageIndex === messages.length - 1
-                            }
-                            key={`${chatMessage.id}-${partIndex}`}
-                          >
-                            {part.text}
-                          </MessageResponse>
-                        ) : (
-                          <span key={`${chatMessage.id}-${partIndex}`}>
-                            {part.text}
-                          </span>
-                        ),
-                      )}
-                    <MessageTools
-                      parts={chatMessage.parts}
-                      onRespond={(id, approved) => addToolApprovalResponse({ id, approved })}
-                    />
-                    <MessageSources parts={chatMessage.parts} />
-                  </MessageContent>
-                </Message>
-              ))}
-              {status === "submitted" && (
-                <Message from="assistant" className="items-start self-start">
-                  <MessageContent
-                    dir="rtl"
-                    className="rounded-2xl rounded-bl-sm border border-white/10 bg-[#202b35] px-4 py-3"
-                  >
-                    <span className="shimmer">
-                      رهیار در حال فکر کردن است...
-                    </span>
-                  </MessageContent>
-                </Message>
-              )}
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
-
-          {error && (
-            <p role="alert" className="mt-2 text-xs text-red-400">
-              {friendlyError(error)}
-            </p>
-          )}
-
-          <WorkflowStep workflow={workflow} onPick={handleWorkflowPick} disabled={busy} />
-
-          <PromptInput onSubmit={handleSubmit} className="mt-3 shrink-0">
-            <PromptInputBody>
-              <PromptInputTextarea
-                aria-label="پیام به دستیار رهیار"
-                placeholder="از رهیار بپرس..."
-              />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <span className="text-[11px] text-slate-500">
-                Enter برای ارسال · Shift+Enter خط جدید
-              </span>
-              <PromptInputSubmit status={status} onStop={stop} />
-            </PromptInputFooter>
-          </PromptInput>
+          <div
+            role="img"
+            aria-label="تصویر دستیار رهیار"
+            className="hidden min-h-72 rounded-2xl bg-[position:center_top] bg-contain bg-no-repeat md:block md:min-h-0 md:bg-[position:center_bottom]"
+            style={{
+              backgroundImage: `linear-gradient(to top, #07141d 0%, transparent 32%), url(${content.image})`,
+            }}
+          />
         </div>
-
-        <div
-          role="img"
-          aria-label="تصویر دستیار رهیار"
-          className="min-h-72 rounded-2xl bg-[position:center_top] bg-contain bg-no-repeat md:min-h-0 md:bg-[position:center_bottom]"
-          style={{
-            backgroundImage: `linear-gradient(to top, #07141d 0%, transparent 32%), url(${content.image})`,
-          }}
-        />
-      </div>
-    </section>
-  </>);
+      </section>
+    </>
+  );
 }

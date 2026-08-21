@@ -143,6 +143,17 @@ input:focus-visible,
     transparent 100%
   );
 }
+.assistant-scrollbars-hidden,
+.assistant-scrollbars-hidden * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.assistant-scrollbars-hidden::-webkit-scrollbar,
+.assistant-scrollbars-hidden *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
